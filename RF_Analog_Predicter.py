@@ -224,6 +224,11 @@ for video_name in os.listdir(TO_PREDICT_PATH):
             # theta of 74 is 500 psi and theta of 173 is 2,000 psi
             if theta <= 74 or theta >= 173:
                 winsound.Beep(frequency, duration)
+            
+            # Puts cooridnates on center label
+            for label_index, label in enumerate(labels_found):
+                if "Center" in label:
+                    labels_found[label_index] = label + " " +  str(theta) + " deg"
         
         if SAVE_ANNOTATED_VIDEOS:
             predicted_image = draw_bounding_boxes(transformed_image,
@@ -251,7 +256,7 @@ for video_name in os.listdir(TO_PREDICT_PATH):
                 fontScale = 1.0
                 thickness = 2
                 cv2.putText(predicted_image_cv2, 
-                            str(theta) + " " + labels_found[dieCoordinate_index], 
+                            labels_found[dieCoordinate_index], 
                             start_point_text, font, fontScale, color, thickness)
             
             # Saves video with bounding boxes
