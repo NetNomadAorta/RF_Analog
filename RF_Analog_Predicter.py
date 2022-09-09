@@ -17,6 +17,7 @@ import math
 import winsound
 import requests
 from PIL import Image
+import io
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 import yaml
 import smtplib
@@ -152,9 +153,35 @@ for video_name in os.listdir(TO_PREDICT_PATH):
         if not success:
             break
         
-        if count % 6 != 0:
-            count += 1
-            continue
+        # Inference through Roboflow
+        # -----------------------------------------------------------------------------
+        # Load Image with PIL
+        image = cv2.cvtColor(image_b4_color, cv2.COLOR_BGR2RGB)
+        pilImage = Image.fromarray(image)
+        
+        # Convert to JPEG Buffer
+        buffered = io.BytesIO()
+        pilImage.save(buffered, quality=100, format="JPEG")
+        
+        # Construct the URL
+        upload_url = "".join([
+            "https://detect.roboflow.com/blood-cell-detection-1ekwu/1",
+            "?api_key=umichXAeCyw6nlBsDZIt",
+            "&confidence=" + str(MIN_SCORE)
+        ])
+        
+        # Build multipart form and post request
+        m = MultipartEncoder(fields={'file': ("imageToUpload", buffered.getvalue(), "image/jpeg")})
+        
+        response = requests.post(upload_url, 
+                                 data=m, 
+                                 headers={'Content-Type': m.content_type},
+                                 )
+        
+        predictions = response.json()['predictions']
+        # -----------------------------------------------------------------------------
+        
+        
         
         image = cv2.cvtColor(image_b4_color, cv2.COLOR_BGR2RGB)
         
