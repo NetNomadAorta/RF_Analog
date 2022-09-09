@@ -15,6 +15,13 @@ from albumentations.pytorch import ToTensorV2
 import shutil
 import math
 import winsound
+import requests
+from PIL import Image
+from requests_toolbelt.multipart.encoder import MultipartEncoder
+import yaml
+import smtplib
+from email.message import EmailMessage
+from email.utils import make_msgid
 
 
 # User parameters
@@ -65,6 +72,13 @@ start_time = time.time()
 # Windows beep settings
 frequency = 700  # Set Frequency To 2500 Hertz
 duration = 80  # Set Duration To 1000 ms == 1 second
+
+# Email info
+settings = yaml.safe_load( open("config.yaml") )
+camera_ip_info = settings['camera_ip_info']
+from_addr   = settings['from_addr']
+to_addr     = settings['to_addr']
+password        = settings['password']
 
 # Deletes images already in "Predicted_Images" folder
 deleteDirContents(PREDICTED_PATH)
