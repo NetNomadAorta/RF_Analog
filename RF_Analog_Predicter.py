@@ -69,13 +69,13 @@ start_time = time.time()
 
 # Windows beep settings
 frequency = 700  # Set Frequency To 2500 Hertz
-duration = 80  # Set Duration To 1000 ms == 1 second
+duration = 150  # Set Duration To 1000 ms == 1 second
 
 # Email info
-settings = yaml.safe_load( open("config.yaml") )
-camera_ip_info = settings['camera_ip_info']
-from_addr   = settings['from_addr']
-to_addr     = settings['to_addr']
+settings        = yaml.safe_load( open("config.yaml") )
+camera_ip_info  = settings['camera_ip_info']
+from_addr       = settings['from_addr']
+to_addr         = settings['to_addr']
 password        = settings['password']
 
 # Deletes images already in "Predicted_Images" folder
@@ -213,8 +213,16 @@ for video_name in os.listdir(TO_PREDICT_PATH):
                 theta *= -1
                 theta = (180 - theta) + 180
             
-            # theta of 166 is 500 psi and theta of 263 is 2,000 psi
-            if theta <= 166 or theta >= 263:
+            # Sets new starting point
+            theta = theta - 90
+            
+            # Changes negative thetat to appropriate value
+            if theta < 0:
+                theta *= -1
+                theta = theta + 270
+            
+            # theta of 74 is 500 psi and theta of 173 is 2,000 psi
+            if theta <= 74 or theta >= 173:
                 winsound.Beep(frequency, duration)
         
         if SAVE_ANNOTATED_VIDEOS:
