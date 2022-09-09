@@ -172,33 +172,25 @@ for video_name in os.listdir(TO_PREDICT_PATH):
         predictions = response.json()['predictions']
         # -----------------------------------------------------------------------------
         
+        die_coordinates = []
+        labels_found = []
+        confidence_level_list = []
+        for prediction in predictions:
+            x1 = prediction['x']
+            y1 = prediction['y']
+            x2 = x1 + prediction['width']
+            y2 = y1 + prediction['height']
+            die_coordinates.append([x1, y1, x2, y2])
+            
+            label = prediction['class']
+            labels_found.append(label)
         
-        
-        image = cv2.cvtColor(image_b4_color, cv2.COLOR_BGR2RGB)
-        
-        transformed_image = transforms(image=image)
-        transformed_image = transformed_image["image"]
-        
-        if ii == 0:
-            line_width = max(round(transformed_image.shape[1] * 0.002), 1)
-        
-        with torch.no_grad():
-            prediction = model([(transformed_image/255).to(device)])
-            pred = prediction[0]
-        
-        dieCoordinates = pred['boxes'][pred['scores'] > MIN_SCORE]
-        die_class_indexes = pred['labels'][pred['scores'] > MIN_SCORE]
-        # BELOW SHOWS SCORES - COMMENT OUT IF NEEDED
-        die_scores = pred['scores'][pred['scores'] > MIN_SCORE]
-        
-        # labels_found = [str(int(die_scores[index]*100)) + "% - " + str(classes[class_index]) 
-        #                 for index, class_index in enumerate(die_class_indexes)]
-        labels_found = [str(classes[class_index]) 
-                        for index, class_index in enumerate(die_class_indexes)]
         
         if "Center" in labels_found and "Needle_Tip" in labels_found:
+            
             # Center
-            center_coordinates = dieCoordinates[die_class_indexes == 1][0]
+            center_indexes = [index for index, x in enumerate(labels_found) if x == "Center"]
+            center_coordinates = die_coordinates[center_indexes[0]]
             
             # Center of center bbox
             center_x_center = int(center_coordinates[0] 
@@ -209,7 +201,8 @@ for video_name in os.listdir(TO_PREDICT_PATH):
                                   )
             
             # Needle_Tip
-            needle_tip_coordinates = dieCoordinates[die_class_indexes == 2][0]
+            needle_tip_indexes = [index for index, x in enumerate(labels_found) if x == "Needle_Tip"]
+            needle_tip_coordinates = die_coordinates[needle_tip_indexes[0]]
             
             # Center of needle tip bbox
             center_x_needle_tip = int(needle_tip_coordinates[0] 
@@ -249,36 +242,46 @@ for video_name in os.listdir(TO_PREDICT_PATH):
                     labels_found[label_index] = label + " " +  str(theta) + " deg"
         
         if SAVE_ANNOTATED_VIDEOS:
-            predicted_image = draw_bounding_boxes(transformed_image,
-                boxes = dieCoordinates,
-                # labels = [classes[i] for i in die_class_indexes], 
-                # labels = [str(round(i,2)) for i in die_scores], # SHOWS SCORE IN LABEL
-                width = line_width,
-                colors = [color_list[i] for i in die_class_indexes],
-                font = "arial.ttf",
-                font_size = 10
-                )
+            # predicted_image = draw_bounding_boxes(transformed_image,
+            #     boxes = die_coordinates,
+            #     # labels = [classes[i] for i in die_class_indexes], 
+            #     # labels = [str(round(i,2)) for i in die_scores], # SHOWS SCORE IN LABEL
+            #     width = line_width,
+            #     colors = [color_list[i] for i in die_class_indexes],
+            #     font = "arial.ttf",
+            #     font_size = 10
+            #     )
             
-            predicted_image_cv2 = predicted_image.permute(1,2,0).contiguous().numpy()
-            predicted_image_cv2 = cv2.cvtColor(predicted_image_cv2, cv2.COLOR_RGB2BGR)
+            # predicted_image_cv2 = image.permute(1,2,0).contiguous().numpy()
+            # predicted_image_cv2 = cv2.cvtColor(predicted_image_cv2, cv2.COLOR_RGB2BGR)
             
-            for dieCoordinate_index, dieCoordinate in enumerate(dieCoordinates):
+            for dieCoordinate_index, dieCoordinate in enumerate(die_coordinates):
                 start_point = ( int(dieCoordinate[0]), int(dieCoordinate[1]) )
-                # end_point = ( int(dieCoordinate[2]), int(dieCoordinate[3]) )
-                color = (255, 255, 255)
-                # thickness = 3
-                # cv2.rectangle(predicted_image_cv2, start_point, end_point, color, thickness)
+                end_point = ( int(dieCoordinate[2]), int(dieCoordinate[3]) )
+                color_1 = (255, 0, 255)
+                color_2 = (255, 255, 255)
+                thickness = 3
+                
+                cv2.rectangle(image_b4_color, start_point, end_point, color_1, thickness)
+                
+                # Draws line from needle base to tip
+                cv2.line(image_b4_color, 
+                         (center_x_center, center_y_center), 
+                         (center_x_needle_tip, center_y_needle_tip), 
+                         color_2, 
+                         thickness=thickness
+                         )
                 
                 start_point_text = (start_point[0], max(start_point[1]-5,0) )
                 font = cv2.FONT_HERSHEY_SIMPLEX
                 fontScale = 1.0
                 thickness = 2
-                cv2.putText(predicted_image_cv2, 
+                cv2.putText(image_b4_color, 
                             labels_found[dieCoordinate_index], 
-                            start_point_text, font, fontScale, color, thickness)
+                            start_point_text, font, fontScale, color_2, thickness)
             
             # Saves video with bounding boxes
-            video_out.write(predicted_image_cv2)
+            video_out.write(image_b4_color)
         
         
         tenScale = 10
