@@ -28,15 +28,10 @@ from email.utils import make_msgid
 # User parameters
 SAVE_NAME_OD = "./Models-OD/RF_Analog-0.model"
 DATASET_PATH = "./Training_Data/" + SAVE_NAME_OD.split("./Models-OD/",1)[1].split("-",1)[0] +"/"
-IMAGE_SIZE              = int(re.findall(r'\d+', SAVE_NAME_OD)[-1] ) # Row and column number 
 TO_PREDICT_PATH         = "./Images/Prediction_Images/To_Predict/"
-# TO_PREDICT_PATH         = "//mcrtp-sftp-01/aoitool/SMiPE4-623/XDCC000109C2/"            # USE FOR XDisplay LOTS!
 PREDICTED_PATH          = "./Images/Prediction_Images/Predicted_Images/"
-# PREDICTED_PATH          = "//mcrtp-sftp-01/aoitool/SMiPE4-623-Cropped/XDCC000109C2/"    # USE FOR XDisplay LOTS!
-# PREDICTED_PATH        = "C:/Users/troya/.spyder-py3/ML-Defect_Detection/Images/Prediction_Images/To_Predict_Images/"
 SAVE_ANNOTATED_VIDEOS   = True
-DIE_SPACING_SCALE       = 0.99
-MIN_SCORE               = 0.7 # Default 0.5
+MIN_SCORE               = 0.7 # Minimum object detection score
 
 
 def time_convert(sec):
@@ -82,24 +77,22 @@ password        = settings['password']
 # Deletes images already in "Predicted_Images" folder
 deleteDirContents(PREDICTED_PATH)
 
+
 dataset_path = DATASET_PATH
-
-
 
 #load classes
 coco = COCO(os.path.join(dataset_path, "train", "_annotations.coco.json"))
 categories = coco.cats
-n_classes_1 = len(categories.keys())
-categories
+num_classes = len(categories.keys())
 
-classes_1 = [i[1]['name'] for i in categories.items()]
+classes = [i[1]['name'] for i in categories.items()]
 
 
 
 # lets load the faster rcnn model
-model_1 = models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
-in_features = model_1.roi_heads.box_predictor.cls_score.in_features # we need to change the head
-model_1.roi_heads.box_predictor = models.detection.faster_rcnn.FastRCNNPredictor(in_features, n_classes_1)
+model = models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+in_features = model.roi_heads.box_predictor.cls_score.in_features # we need to change the head
+model.roi_heads.box_predictor = models.detection.faster_rcnn.FastRCNNPredictor(in_features, num_classes)
 
 
 # Loads last saved checkpoint
@@ -112,16 +105,14 @@ else:
 
 if os.path.isfile(SAVE_NAME_OD):
     checkpoint = torch.load(SAVE_NAME_OD, map_location=map_location)
-    model_1.load_state_dict(checkpoint)
+    model.load_state_dict(checkpoint)
 
-model_1 = model_1.to(device)
+model = model.to(device)
 
-model_1.eval()
+model.eval()
 torch.cuda.empty_cache()
 
-transforms_1 = A.Compose([
-    # A.Resize(IMAGE_SIZE, IMAGE_SIZE), # our input size can be 600px
-    # A.Rotate(limit=[90,90], always_apply=True),
+transforms = A.Compose([
     ToTensorV2()
 ])
 
@@ -185,24 +176,24 @@ for video_name in os.listdir(TO_PREDICT_PATH):
         
         image = cv2.cvtColor(image_b4_color, cv2.COLOR_BGR2RGB)
         
-        transformed_image = transforms_1(image=image)
+        transformed_image = transforms(image=image)
         transformed_image = transformed_image["image"]
         
         if ii == 0:
             line_width = max(round(transformed_image.shape[1] * 0.002), 1)
         
         with torch.no_grad():
-            prediction_1 = model_1([(transformed_image/255).to(device)])
-            pred_1 = prediction_1[0]
+            prediction = model([(transformed_image/255).to(device)])
+            pred = prediction[0]
         
-        dieCoordinates = pred_1['boxes'][pred_1['scores'] > MIN_SCORE]
-        die_class_indexes = pred_1['labels'][pred_1['scores'] > MIN_SCORE]
+        dieCoordinates = pred['boxes'][pred['scores'] > MIN_SCORE]
+        die_class_indexes = pred['labels'][pred['scores'] > MIN_SCORE]
         # BELOW SHOWS SCORES - COMMENT OUT IF NEEDED
-        die_scores = pred_1['scores'][pred_1['scores'] > MIN_SCORE]
+        die_scores = pred['scores'][pred['scores'] > MIN_SCORE]
         
-        # labels_found = [str(int(die_scores[index]*100)) + "% - " + str(classes_1[class_index]) 
+        # labels_found = [str(int(die_scores[index]*100)) + "% - " + str(classes[class_index]) 
         #                 for index, class_index in enumerate(die_class_indexes)]
-        labels_found = [str(classes_1[class_index]) 
+        labels_found = [str(classes[class_index]) 
                         for index, class_index in enumerate(die_class_indexes)]
         
         if "Center" in labels_found and "Needle_Tip" in labels_found:
@@ -260,7 +251,7 @@ for video_name in os.listdir(TO_PREDICT_PATH):
         if SAVE_ANNOTATED_VIDEOS:
             predicted_image = draw_bounding_boxes(transformed_image,
                 boxes = dieCoordinates,
-                # labels = [classes_1[i] for i in die_class_indexes], 
+                # labels = [classes[i] for i in die_class_indexes], 
                 # labels = [str(round(i,2)) for i in die_scores], # SHOWS SCORE IN LABEL
                 width = line_width,
                 colors = [color_list[i] for i in die_class_indexes],
