@@ -153,7 +153,7 @@ for video_name in os.listdir(TO_PREDICT_PATH):
         
         # Construct the URL
         upload_url = "".join([
-            "https://detect.roboflow.com/analog/8",
+            "https://detect.roboflow.com/analog/9",
             "?api_key=kAGiAjfXg1MNA0NfST4F",
             "&confidence=" + str(MIN_SCORE)
         ])
