@@ -1,14 +1,12 @@
 import os
 import torch
 from torchvision import models
-import re
 import cv2
 import albumentations as A  # our data augmentation library
 # remove arnings (optional)
 import warnings
 warnings.filterwarnings("ignore")
 import time
-from torchvision.utils import draw_bounding_boxes
 from pycocotools.coco import COCO
 # Now, we will define our transforms
 from albumentations.pytorch import ToTensorV2
@@ -31,7 +29,7 @@ DATASET_PATH = "./Training_Data/" + SAVE_NAME_OD.split("./Models-OD/",1)[1].spli
 TO_PREDICT_PATH         = "./Images/Prediction_Images/To_Predict/"
 PREDICTED_PATH          = "./Images/Prediction_Images/Predicted_Images/"
 SAVE_ANNOTATED_VIDEOS   = True
-MIN_SCORE               = 0.7 # Minimum object detection score
+MIN_SCORE               = 0.4 # Minimum object detection score
 
 
 def time_convert(sec):
@@ -53,13 +51,9 @@ def deleteDirContents(dir):
             os.remove(full_path)
 
 
-# Creates class folder
-def makeDir(dir, classes_2):
-    for classIndex, className in enumerate(classes_2):
-        os.makedirs(dir + className, exist_ok=True)
 
-
-
+# Main()
+# =============================================================================
 # Starting stopwatch to see how long process takes
 start_time = time.time()
 
@@ -129,10 +123,13 @@ for video_name in os.listdir(TO_PREDICT_PATH):
     
     video_capture = cv2.VideoCapture(video_path)
     
+    frame_count = int(video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+    video_fps = round( video_capture.get(cv2.CAP_PROP_FPS) )
+    
     success, image_b4_color = video_capture.read()
     
     fourcc = cv2.VideoWriter_fourcc(*'MP4V')
-    video_out = cv2.VideoWriter(PREDICTED_PATH + video_name, fourcc, 20.0, 
+    video_out = cv2.VideoWriter(PREDICTED_PATH + video_name, fourcc, video_fps, 
                                 (int(image_b4_color.shape[1]), 
                                  int(image_b4_color.shape[0])
                                  )
@@ -156,8 +153,8 @@ for video_name in os.listdir(TO_PREDICT_PATH):
         
         # Construct the URL
         upload_url = "".join([
-            "https://detect.roboflow.com/blood-cell-detection-1ekwu/1",
-            "?api_key=umichXAeCyw6nlBsDZIt",
+            "https://detect.roboflow.com/analog/8",
+            "?api_key=kAGiAjfXg1MNA0NfST4F",
             "&confidence=" + str(MIN_SCORE)
         ])
         
@@ -176,8 +173,8 @@ for video_name in os.listdir(TO_PREDICT_PATH):
         labels_found = []
         confidence_level_list = []
         for prediction in predictions:
-            x1 = prediction['x']
-            y1 = prediction['y']
+            x1 = prediction['x'] - prediction['width']/2
+            y1 = prediction['y'] - prediction['height']/2
             x2 = x1 + prediction['width']
             y2 = y1 + prediction['height']
             die_coordinates.append([x1, y1, x2, y2])
@@ -236,52 +233,44 @@ for video_name in os.listdir(TO_PREDICT_PATH):
             if theta <= 74 or theta >= 173:
                 winsound.Beep(frequency, duration)
             
-            # Puts cooridnates on center label
+            # Puts cooridnates on center label and number on needle tip
             for label_index, label in enumerate(labels_found):
                 if "Center" in label:
                     labels_found[label_index] = label + " " +  str(theta) + " deg"
+                if "Needle_Tip" in label:
+                    psi = int(15.21*theta-638.21)
+                    labels_found[label_index] = label + " " +  str(psi) + " psi"
         
         if SAVE_ANNOTATED_VIDEOS:
-            # predicted_image = draw_bounding_boxes(transformed_image,
-            #     boxes = die_coordinates,
-            #     # labels = [classes[i] for i in die_class_indexes], 
-            #     # labels = [str(round(i,2)) for i in die_scores], # SHOWS SCORE IN LABEL
-            #     width = line_width,
-            #     colors = [color_list[i] for i in die_class_indexes],
-            #     font = "arial.ttf",
-            #     font_size = 10
-            #     )
-            
-            # predicted_image_cv2 = image.permute(1,2,0).contiguous().numpy()
-            # predicted_image_cv2 = cv2.cvtColor(predicted_image_cv2, cv2.COLOR_RGB2BGR)
             
             for dieCoordinate_index, dieCoordinate in enumerate(die_coordinates):
                 start_point = ( int(dieCoordinate[0]), int(dieCoordinate[1]) )
                 end_point = ( int(dieCoordinate[2]), int(dieCoordinate[3]) )
                 color_1 = (255, 0, 255)
                 color_2 = (255, 255, 255)
-                thickness = 3
+                thickness = 1
                 
                 cv2.rectangle(image_b4_color, start_point, end_point, color_1, thickness)
                 
-                # Draws line from needle base to tip
-                cv2.line(image_b4_color, 
-                         (center_x_center, center_y_center), 
-                         (center_x_needle_tip, center_y_needle_tip), 
-                         color_2, 
-                         thickness=thickness
-                         )
+                if "Center" in labels_found and "Needle_Tip" in labels_found:
+                    # Draws line from needle base to tip
+                    cv2.line(image_b4_color, 
+                             (center_x_center, center_y_center), 
+                             (center_x_needle_tip, center_y_needle_tip), 
+                             color_2, 
+                             thickness=thickness
+                             )
                 
                 start_point_text = (start_point[0], max(start_point[1]-5,0) )
                 font = cv2.FONT_HERSHEY_SIMPLEX
-                fontScale = 1.0
-                thickness = 2
+                fontScale = 0.5
+                thickness = 1
                 cv2.putText(image_b4_color, 
                             labels_found[dieCoordinate_index], 
                             start_point_text, font, fontScale, color_2, thickness)
             
-            # Saves video with bounding boxes
-            video_out.write(image_b4_color)
+        # Saves video with bounding boxes
+        video_out.write(image_b4_color)
         
         
         tenScale = 10
@@ -291,7 +280,7 @@ for video_name in os.listdir(TO_PREDICT_PATH):
             fps_end_time = time.time()
             fps_time_lapsed = fps_end_time - fps_start_time
             print("  " + str(ii) + " of " 
-                  + str(len(os.listdir(TO_PREDICT_PATH))), 
+                  + str(frame_count), 
                   "-",  round(tenScale/fps_time_lapsed, 2), "FPS")
             fps_start_time = time.time()
         
@@ -306,3 +295,4 @@ print("Done!")
 end_time = time.time()
 time_lapsed = end_time - start_time
 time_convert(time_lapsed)
+# =============================================================================
