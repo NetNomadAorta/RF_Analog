@@ -61,9 +61,6 @@ password        = settings['password']
 # Deletes images already in "Predicted_Images" folder
 deleteDirContents(PREDICTED_PATH)
 
-# Start FPS timer
-fps_start_time = time.time()
-
 for video_name in os.listdir(TO_PREDICT_PATH):
     video_path = os.path.join(TO_PREDICT_PATH, video_name)
     
