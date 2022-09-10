@@ -1,15 +1,6 @@
 import os
-import torch
-from torchvision import models
 import cv2
-import albumentations as A  # our data augmentation library
-# remove arnings (optional)
-import warnings
-warnings.filterwarnings("ignore")
 import time
-from pycocotools.coco import COCO
-# Now, we will define our transforms
-from albumentations.pytorch import ToTensorV2
 import shutil
 import math
 import winsound
@@ -17,6 +8,7 @@ import requests
 from PIL import Image
 import io
 from requests_toolbelt.multipart.encoder import MultipartEncoder
+# For email section
 import yaml
 import smtplib
 from email.message import EmailMessage
@@ -24,8 +16,6 @@ from email.utils import make_msgid
 
 
 # User parameters
-SAVE_NAME_OD = "./Models-OD/RF_Analog-0.model"
-DATASET_PATH = "./Training_Data/" + SAVE_NAME_OD.split("./Models-OD/",1)[1].split("-",1)[0] +"/"
 TO_PREDICT_PATH         = "./Images/Prediction_Images/To_Predict/"
 PREDICTED_PATH          = "./Images/Prediction_Images/Predicted_Images/"
 SAVE_ANNOTATED_VIDEOS   = True
@@ -70,46 +60,6 @@ password        = settings['password']
 
 # Deletes images already in "Predicted_Images" folder
 deleteDirContents(PREDICTED_PATH)
-
-
-dataset_path = DATASET_PATH
-
-#load classes
-coco = COCO(os.path.join(dataset_path, "train", "_annotations.coco.json"))
-categories = coco.cats
-num_classes = len(categories.keys())
-
-classes = [i[1]['name'] for i in categories.items()]
-
-
-
-# lets load the faster rcnn model
-model = models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
-in_features = model.roi_heads.box_predictor.cls_score.in_features # we need to change the head
-model.roi_heads.box_predictor = models.detection.faster_rcnn.FastRCNNPredictor(in_features, num_classes)
-
-
-# Loads last saved checkpoint
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-if torch.cuda.is_available():
-    map_location=lambda storage, loc: storage.cuda()
-else:
-    map_location='cpu'
-
-if os.path.isfile(SAVE_NAME_OD):
-    checkpoint = torch.load(SAVE_NAME_OD, map_location=map_location)
-    model.load_state_dict(checkpoint)
-
-model = model.to(device)
-
-model.eval()
-torch.cuda.empty_cache()
-
-transforms = A.Compose([
-    ToTensorV2()
-])
-
 
 # Start FPS timer
 fps_start_time = time.time()
