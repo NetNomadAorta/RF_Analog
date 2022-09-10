@@ -16,8 +16,8 @@ from email.utils import make_msgid
 
 
 # User parameters
-TO_PREDICT_PATH         = "./Images/Prediction_Images/To_Predict/"
-PREDICTED_PATH          = "./Images/Prediction_Images/Predicted_Images/"
+TO_PREDICT_PATH         = "./To_Predict_Videos/"
+PREDICTED_PATH          = "./Predicted_Videos/"
 SAVE_ANNOTATED_VIDEOS   = True
 MIN_SCORE               = 0.4 # Minimum object detection score
 
@@ -64,9 +64,6 @@ deleteDirContents(PREDICTED_PATH)
 # Start FPS timer
 fps_start_time = time.time()
 
-color_list =['green', 'red', 'blue', 'magenta', 'orange', 'cyan', 'lime', 'turquoise', 'yellow']
-pred_dict = {}
-ii = 0
 for video_name in os.listdir(TO_PREDICT_PATH):
     video_path = os.path.join(TO_PREDICT_PATH, video_name)
     
@@ -85,7 +82,6 @@ for video_name in os.listdir(TO_PREDICT_PATH):
                                  )
                                 )
     
-    count = 1
     while success:
         success, image_b4_color = video_capture.read()
         if not success:
@@ -221,20 +217,6 @@ for video_name in os.listdir(TO_PREDICT_PATH):
             
         # Saves video with bounding boxes
         video_out.write(image_b4_color)
-        
-        
-        tenScale = 10
-    
-        ii += 1
-        if ii % tenScale == 0:
-            fps_end_time = time.time()
-            fps_time_lapsed = fps_end_time - fps_start_time
-            print("  " + str(ii) + " of " 
-                  + str(frame_count), 
-                  "-",  round(tenScale/fps_time_lapsed, 2), "FPS")
-            fps_start_time = time.time()
-        
-        count += 1
         
     video_out.release()
 
