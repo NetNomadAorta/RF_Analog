@@ -60,11 +60,8 @@ for video_name in os.listdir(TO_PREDICT_PATH):
         pilImage.save(buffered, quality=100, format="JPEG")
         
         # Construct the URL
-        upload_url = "".join([
-            "https://detect.roboflow.com/analog/10",
-            "?api_key=kAGiAjfXg1MNA0NfST4F",
-            "&confidence=" + str(MIN_SCORE)
-        ])
+        settings = yaml.safe_load( open("config.yaml") )
+        upload_url = settings['upload_url'] + str(MIN_SCORE)
         
         # Build multipart form and post request
         m = MultipartEncoder(fields={'file': ("imageToUpload", buffered.getvalue(), "image/jpeg")})
