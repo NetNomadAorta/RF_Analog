@@ -8,6 +8,7 @@ import requests
 from PIL import Image
 import io
 from requests_toolbelt.multipart.encoder import MultipartEncoder
+import yaml
 
 
 # User parameters

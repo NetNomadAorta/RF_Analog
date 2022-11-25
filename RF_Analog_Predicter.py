@@ -13,6 +13,7 @@ import yaml
 import smtplib
 from email.message import EmailMessage
 from email.utils import make_msgid
+import yaml
 
 
 # User parameters
